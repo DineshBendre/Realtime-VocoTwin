@@ -9,7 +9,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = process.env.REACT_APP_API_URL;
+  if (!API_URL) {
+    throw new Error('REACT_APP_API_URL is not defined. Please set it in your .env file.');
+  }
   const statusIntervalRef = useRef(null);
 
   // Check status periodically
