@@ -14,6 +14,7 @@ import time
 from google import genai
 from google.genai import types
 from flask_cors import CORS
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -28,6 +29,8 @@ CHUNK_SIZE = 1024
 MODEL = "models/gemini-2.0-flash-live-001"
 
 # Initialize the Gemini client
+load_dotenv()
+
 client = genai.Client(
     http_options={"api_version": "v1beta"},
     api_key=os.environ.get("GEMINI_API_KEY"),
