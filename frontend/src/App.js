@@ -166,7 +166,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Gemini Live API Controller</h1>
+        <h1>Realtime Vocotwin</h1>
         <div className="status-indicator">
           <span className={`status-dot ${sessionActive ? 'active' : 'inactive'}`}></span>
           <span>{status}</span>
@@ -223,7 +223,7 @@ function App() {
                 type="text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Type a message to Gemini..."
+                placeholder="Type a message ..."
                 disabled={!sessionActive || isLoading}
               />
               <button 
@@ -239,7 +239,7 @@ function App() {
       </main>
 
       <footer>
-        <p>Gemini Live API Controller | {new Date().getFullYear()}</p>
+        <p>Made by Dinesh Bendre | {new Date().getFullYear()}</p>
       </footer>
     </div>
   );
