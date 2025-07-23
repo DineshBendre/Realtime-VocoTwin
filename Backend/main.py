@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import os
 import asyncio
 import base64
@@ -16,8 +16,8 @@ from google.genai import types
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+app = Flask(__name__, static_folder=None)
+CORS(app) 
 
 # Audio settings
 FORMAT = pyaudio.paInt16
@@ -128,7 +128,7 @@ def run_coroutine(coro):
     if main_loop and main_loop.is_running():
         future = asyncio.run_coroutine_threadsafe(coro, main_loop)
         try:
-            return future.result(timeout=10)  # 10 seconds timeout
+            return future.result(timeout=10)
         except Exception as e:
             print(f"Error running coroutine: {e}")
             return None
@@ -450,6 +450,16 @@ def change_mode():
     
     video_mode = new_mode
     return jsonify({"status": "success", "message": f"Mode changed to {video_mode}"})
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_react_app(path):
+    build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend/build'))
+    file_path = os.path.join(build_dir, path)
+    if path != "" and os.path.exists(file_path) and not os.path.isdir(file_path):
+        return send_from_directory(build_dir, path)
+    else:
+        return send_from_directory(build_dir, 'index.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
