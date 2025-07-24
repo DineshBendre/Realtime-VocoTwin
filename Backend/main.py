@@ -459,6 +459,7 @@ def serve_react_app(path):
     
     # Define the build directory - FIXED for Docker container
     build_dir = os.path.join(os.getcwd(), 'frontend', 'build')
+    # build_dir = os.path.join(os.path.dirname(os.getcwd()), 'frontend', 'build')
     print(f"Looking for files in: {build_dir}")
     print(f"Directory exists: {os.path.exists(build_dir)}")
     
