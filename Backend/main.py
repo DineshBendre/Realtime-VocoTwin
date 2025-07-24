@@ -73,16 +73,16 @@ def get_camera_frame():
     
     if not ret:
         return None
-    
+
     # Convert BGR to RGB
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     img = PIL.Image.fromarray(frame_rgb)
     img.thumbnail([1024, 1024])
-    
+
     image_io = io.BytesIO()
     img.save(image_io, format="jpeg")
     image_io.seek(0)
-    
+
     mime_type = "image/jpeg"
     image_bytes = image_io.read()
     return {"mime_type": mime_type, "data": base64.b64encode(image_bytes).decode()}
@@ -91,17 +91,17 @@ def get_camera_frame():
 def get_screen_capture():
     sct = mss.mss()
     monitor = sct.monitors[0]
-    
+
     i = sct.grab(monitor)
-    
+
     mime_type = "image/jpeg"
     image_bytes = mss.tools.to_png(i.rgb, i.size)
     img = PIL.Image.open(io.BytesIO(image_bytes))
-    
+
     image_io = io.BytesIO()
     img.save(image_io, format="jpeg")
     image_io.seek(0)
-    
+
     image_bytes = image_io.read()
     return {"mime_type": mime_type, "data": base64.b64encode(image_bytes).decode()}
 
@@ -112,7 +112,7 @@ def async_handler():
     # Create a new event loop for this thread
     main_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(main_loop)
-    
+
     try:
         # Run the event loop
         main_loop.run_forever()
@@ -146,12 +146,12 @@ def capture_images():
             else:
                 time.sleep(1)
                 continue
-            
+
             if frame:
                 if image_queue.full():
                     image_queue.get()  # Remove oldest item if queue is full
                 image_queue.put(frame)
-            
+
             time.sleep(1)  # Capture every second
         except Exception as e:
             print(f"Error capturing images: {e}")
@@ -160,11 +160,11 @@ def capture_images():
 # Thread function to send images to Gemini
 def send_images():
     global session, image_queue, session_active
-    
+
     async def send_image(frame):
         if session:
             await session.send(input=frame)
-    
+
     while session_active:
         try:
             if not image_queue.empty() and session:
@@ -188,14 +188,14 @@ def record_audio():
             input_device_index=mic_info["index"],
             frames_per_buffer=CHUNK_SIZE,
         )
-        
+
         while session_active:
             data = audio_stream.read(CHUNK_SIZE, exception_on_overflow=False)
             audio_packet = {"data": data, "mime_type": "audio/pcm"}
             if audio_out_queue.qsize() > 10:  # Limit queue size
                 audio_out_queue.get()  # Remove oldest item if queue is too large
             audio_out_queue.put(audio_packet)
-            
+
         audio_stream.close()
     except Exception as e:
         print(f"Error recording audio: {e}")
@@ -203,11 +203,11 @@ def record_audio():
 # Thread function to send audio to Gemini
 def send_audio():
     global session, audio_out_queue, session_active
-    
+
     async def send_audio_data(audio_data):
         if session:
             await session.send(input=audio_data)
-    
+
     while session_active:
         try:
             if not audio_out_queue.empty() and session:
@@ -221,11 +221,11 @@ def send_audio():
 # Thread function to receive responses from Gemini
 def receive_responses():
     global session, audio_in_queue, session_active
-    
+
     async def process_responses():
         if not session:
             return
-            
+
         try:
             response_gen = session.receive()
             async for response in response_gen:
@@ -235,7 +235,7 @@ def receive_responses():
                     print(f"Received text: {response.text}")
         except Exception as e:
             print(f"Error in receive operation: {e}")
-    
+
     while session_active:
         try:
             run_coroutine(process_responses())
@@ -254,7 +254,7 @@ def play_audio():
             rate=RECEIVE_SAMPLE_RATE,
             output=True,
         )
-        
+
         while session_active:
             try:
                 if not audio_in_queue.empty():
@@ -265,7 +265,7 @@ def play_audio():
             except Exception as e:
                 print(f"Error playing audio: {e}")
                 time.sleep(0.1)
-                
+
         output_stream.close()
     except Exception as e:
         print(f"Error setting up audio playback: {e}")
@@ -273,18 +273,18 @@ def play_audio():
 # Start the session and all threads
 def start_session_threads(session_mode):
     global session, session_ctx, active_tasks, session_active, video_mode, main_loop
-    
+
     # Start Gemini session
     session_active = True
     video_mode = session_mode
-    
+
     # Start the async handler thread if not running
     if main_loop is None:
         async_thread = threading.Thread(target=async_handler)
         async_thread.daemon = True
         async_thread.start()
         time.sleep(0.5)  # Give time for the event loop to start
-    
+
     # Connect to Gemini
     async def connect_async():
         global session, session_ctx
@@ -297,13 +297,13 @@ def start_session_threads(session_mode):
             print(f"Error in async connection: {e}")
             traceback.print_exc()
             return False
-    
+
     connection_success = run_coroutine(connect_async())
-    
+
     if not connection_success:
         session_active = False
         return False
-    
+
     # Start all threads
     threads = [
         threading.Thread(target=capture_images),
@@ -313,32 +313,32 @@ def start_session_threads(session_mode):
         threading.Thread(target=receive_responses),
         threading.Thread(target=play_audio),
     ]
-    
+
     for thread in threads:
         thread.daemon = True
         thread.start()
         active_tasks.append(thread)
-        
+
     return True
 
 # Stop all threads and close the session
 def stop_session_threads():
     global session, session_ctx, active_tasks, session_active, main_loop
-    
+
     if not session_active:
         return True
-    
+
     # Signal threads to stop
     session_active = False
-    
+
     # Wait for threads to finish
     for thread in active_tasks:
         if thread.is_alive():
             thread.join(timeout=1)
-    
+
     # Clear active tasks
     active_tasks = []
-    
+
     # Close session
     if session and session_ctx:
         async def close_session_async():
@@ -350,25 +350,25 @@ def stop_session_threads():
                 print("Session closed successfully")
             except Exception as e:
                 print(f"Error closing session: {e}")
-        
+
         run_coroutine(close_session_async())
-    
+
     return True
 
 # API endpoints
 @app.route('/api/start', methods=['POST'])
 def start_session():
     global video_mode, session_active
-    
+
     if session_active:
         return jsonify({"status": "error", "message": "Session already active"}), 400
-    
+
     data = request.json
     video_mode = data.get('mode', 'none')
-    
+
     if video_mode not in ['camera', 'screen', 'none']:
         return jsonify({"status": "error", "message": "Invalid mode"}), 400
-    
+
     # Start the session and threads
     try:
         success = start_session_threads(video_mode)
@@ -384,10 +384,10 @@ def start_session():
 @app.route('/api/stop', methods=['POST'])
 def stop_session():
     global session_active
-    
+
     if not session_active:
         return jsonify({"status": "error", "message": "No active session"}), 400
-    
+
     # Stop the session and threads
     try:
         success = stop_session_threads()
@@ -403,22 +403,22 @@ def stop_session():
 @app.route('/api/send_text', methods=['POST'])
 def send_text():
     global session, session_active
-    
+
     if not session_active or not session:
         return jsonify({"status": "error", "message": "No active session"}), 400
-    
+
     data = request.json
     text = data.get('text', '')
-    
+
     if not text:
         return jsonify({"status": "error", "message": "No text provided"}), 400
-    
+
     try:
         async def send_text_async():
             nonlocal text
             print(f"Sending text: {text}")
             await session.send(input=text, end_of_turn=True)
-        
+
         run_coroutine(send_text_async())
         return jsonify({"status": "success", "message": "Text sent"})
     except Exception as e:
@@ -429,7 +429,7 @@ def send_text():
 @app.route('/api/status', methods=['GET'])
 def get_status():
     global session_active, video_mode
-    
+
     return jsonify({
         "status": "active" if session_active else "inactive",
         "mode": video_mode
@@ -438,67 +438,29 @@ def get_status():
 @app.route('/api/change_mode', methods=['POST'])
 def change_mode():
     global video_mode, session_active
-    
+
     if not session_active:
         return jsonify({"status": "error", "message": "No active session"}), 400
-    
+
     data = request.json
     new_mode = data.get('mode', 'none')
-    
+
     if new_mode not in ['camera', 'screen', 'none']:
         return jsonify({"status": "error", "message": "Invalid mode"}), 400
-    
+
     video_mode = new_mode
     return jsonify({"status": "success", "message": f"Mode changed to {video_mode}"})
 
-# FIXED: Static file serving for React app
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_react_app(path):
-    print(f"Requested path: {path}")
-    
-    # Define the build directory - FIXED for Docker container
-    build_dir = os.path.join(os.getcwd(), 'frontend', 'build')
-    # build_dir = os.path.join(os.path.dirname(os.getcwd()), 'frontend', 'build')
-    print(f"Looking for files in: {build_dir}")
-    print(f"Directory exists: {os.path.exists(build_dir)}")
-    
-    if os.path.exists(build_dir):
-        print(f"Contents of build_dir: {os.listdir(build_dir)}")
-    
-    # Handle static files
-    if path != "" and not path.startswith('api/'):
-        file_path = os.path.join(build_dir, path)
-        print(f"Checking file path: {file_path}")
-        
-        if os.path.exists(file_path) and not os.path.isdir(file_path):
-            print(f"Serving file: {file_path}")
-            return send_from_directory(build_dir, path)
-    
-    # For all other routes (including root), serve index.html
-    index_path = os.path.join(build_dir, 'index.html')
-    print(f"Serving index.html from: {index_path}")
-    
-    if os.path.exists(index_path):
-        return send_from_directory(build_dir, 'index.html')
+    build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend/build'))
+    file_path = os.path.join(build_dir, path)
+    if path != "" and os.path.exists(file_path) and not os.path.isdir(file_path):
+        return send_from_directory(build_dir, path)
     else:
-        print(f"ERROR: index.html not found at {index_path}")
-        return "Frontend build files not found", 404
-
+        return send_from_directory(build_dir, 'index.html')
+    
 if __name__ == '__main__':
-    print("=== STARTUP DEBUG INFO ===")
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Files in current directory: {os.listdir('.')}")
-    
-    build_dir = os.path.join(os.getcwd(), 'frontend', 'build')
-    print(f"Expected build directory: {build_dir}")
-    print(f"Build directory exists: {os.path.exists(build_dir)}")
-    
-    if os.path.exists(build_dir):
-        print(f"Contents of build directory: {os.listdir(build_dir)}")
-        index_path = os.path.join(build_dir, 'index.html')
-        print(f"index.html exists: {os.path.exists(index_path)}")
-    
-    print("=== END DEBUG INFO ===")
-    
     app.run(debug=True, host='0.0.0.0', port=5000)
