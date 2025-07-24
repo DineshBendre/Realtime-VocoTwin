@@ -451,15 +451,53 @@ def change_mode():
     video_mode = new_mode
     return jsonify({"status": "success", "message": f"Mode changed to {video_mode}"})
 
+# FIXED: Static file serving for React app
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_react_app(path):
-    build_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../frontend/build'))
-    file_path = os.path.join(build_dir, path)
-    if path != "" and os.path.exists(file_path) and not os.path.isdir(file_path):
-        return send_from_directory(build_dir, path)
-    else:
+    print(f"Requested path: {path}")
+    
+    # Define the build directory - FIXED for Docker container
+    build_dir = os.path.join(os.getcwd(), 'frontend', 'build')
+    print(f"Looking for files in: {build_dir}")
+    print(f"Directory exists: {os.path.exists(build_dir)}")
+    
+    if os.path.exists(build_dir):
+        print(f"Contents of build_dir: {os.listdir(build_dir)}")
+    
+    # Handle static files
+    if path != "" and not path.startswith('api/'):
+        file_path = os.path.join(build_dir, path)
+        print(f"Checking file path: {file_path}")
+        
+        if os.path.exists(file_path) and not os.path.isdir(file_path):
+            print(f"Serving file: {file_path}")
+            return send_from_directory(build_dir, path)
+    
+    # For all other routes (including root), serve index.html
+    index_path = os.path.join(build_dir, 'index.html')
+    print(f"Serving index.html from: {index_path}")
+    
+    if os.path.exists(index_path):
         return send_from_directory(build_dir, 'index.html')
+    else:
+        print(f"ERROR: index.html not found at {index_path}")
+        return "Frontend build files not found", 404
 
 if __name__ == '__main__':
+    print("=== STARTUP DEBUG INFO ===")
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Files in current directory: {os.listdir('.')}")
+    
+    build_dir = os.path.join(os.getcwd(), 'frontend', 'build')
+    print(f"Expected build directory: {build_dir}")
+    print(f"Build directory exists: {os.path.exists(build_dir)}")
+    
+    if os.path.exists(build_dir):
+        print(f"Contents of build directory: {os.listdir(build_dir)}")
+        index_path = os.path.join(build_dir, 'index.html')
+        print(f"index.html exists: {os.path.exists(index_path)}")
+    
+    print("=== END DEBUG INFO ===")
+    
     app.run(debug=True, host='0.0.0.0', port=5000)
